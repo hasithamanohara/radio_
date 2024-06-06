@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
+import 'package:provider/provider.dart';
+import 'package:radio_app/apis/radio_Api.dart';
+import 'package:radio_app/provider/radio_provider.dart';
 import 'package:radio_app/widgets/radio_list.dart';
+import 'package:volume_controller/volume_controller.dart';
 
 class RadioPlayer extends StatefulWidget {
   const RadioPlayer({super.key});
@@ -12,9 +15,14 @@ class RadioPlayer extends StatefulWidget {
 class _RadioPlayerState extends State<RadioPlayer>
     with SingleTickerProviderStateMixin {
   late AnimationController animationController;
+  late VolumeController volumeController;
+
   late Animation<Offset> radioOffset;
   late Animation<Offset> radioListOffset;
+
   bool listEnable = false;
+  bool isPlaying = true;
+  bool isMuted = true;
 
   @override
   void initState() {
@@ -30,6 +38,14 @@ class _RadioPlayerState extends State<RadioPlayer>
     radioOffset = Tween(begin: const Offset(0, 0.3), end: const Offset(0, 0.0))
         .animate(CurvedAnimation(
             parent: animationController, curve: Curves.easeOut));
+
+    RadioApi.player.stateStream.listen((event) {
+      setState(() {
+        isPlaying = event;
+      });
+    });
+
+    volumeController = VolumeController();
   }
 
   @override
@@ -44,21 +60,21 @@ class _RadioPlayerState extends State<RadioPlayer>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  width: 250,
-                  height: 250,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color.fromARGB(255, 2, 238, 254),
-                        Color.fromARGB(255, 127, 247, 84),
-                      ],
-                    ),
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                        color: const Color.fromARGB(255, 0, 0, 0), width: 2.0),
                   ),
+                  child:
+                      Consumer<RadioProvider>(builder: (context, value, child) {
+                    return Image.network(
+                      value.station.imageUrl,
+                      fit: BoxFit.fill,
+                    );
+                  }),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -81,16 +97,32 @@ class _RadioPlayerState extends State<RadioPlayer>
                       color: listEnable ? Colors.amber : Colors.white,
                     ),
                     IconButton(
-                      icon: const Icon(Icons.play_arrow),
+                      icon: Icon(isPlaying ? Icons.stop : Icons.play_arrow),
                       iconSize: 64,
                       color: Colors.white,
-                      onPressed: () {},
+                      onPressed: () {
+                        setState(() {
+                          isPlaying
+                              ? RadioApi.player.stop()
+                              : RadioApi.player.play();
+                          isPlaying = !isPlaying;
+                        });
+                      },
                     ),
                     IconButton(
-                      icon: const Icon(Icons.volume_down),
+                      icon: Icon(isMuted ? Icons.volume_off : Icons.volume_up),
                       iconSize: 64,
                       color: Colors.white,
-                      onPressed: () {},
+                      onPressed: () {
+                        if (isMuted) {
+                          volumeController.setVolume(0.5);
+                        } else {
+                          volumeController.muteVolume();
+                        }
+                        setState(() {
+                          isMuted = !isMuted;
+                        });
+                      },
                     ),
                   ],
                 ),
